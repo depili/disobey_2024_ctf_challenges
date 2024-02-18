@@ -1,0 +1,3 @@
+Before our previous agent was captured by KIA they managed to install our sophisticated malware into vital Kouvosto Telecom system to exfiltrate some data. Unfortunately the agent didn't have time to inform us about the encoding used, but they left us a test version of the binary. We believe you are able to observe the exfiltration process yourself and hopefully recover the vital secrets.
+
+Might be able to provide a video capture of the led later...

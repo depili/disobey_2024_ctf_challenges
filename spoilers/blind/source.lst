@@ -1,0 +1,293 @@
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 1 - 10.02.2024 11:13:10
+
+
+    1/   0 :                            	CPU 8085
+    2/   0 :                            	ORG 0000h
+    3/   0 :                            
+    4/   0 :                            
+    5/   0 : =8H                        C_c	EQU	8
+    6/   0 : =9H                        C_u	EQU	9
+    7/   0 : =0AH                       C_s	EQU	10
+    8/   0 : =0BH                       C_t	EQU	11
+    9/   0 : =0CH                       C_o	EQU	12
+   10/   0 : =0DH                       C_m	EQU	13
+   11/   0 : =0EH                       C_h	EQU	14
+   12/   0 : =0FH                       C_a	EQU	15
+   13/   0 :                            
+   14/   0 :                            ; USART registers
+   15/   0 : =8H                        USART_DATA	EQU	08h
+   16/   0 : =9H                        USART_CMD	EQU	09h
+   17/   0 :                            
+   18/   0 : 31 00 C0                   START:	LXI	SP, 0C000h		; Initial stack address
+   19/   3 : CD 6D 00                   	CALL	USART_INIT		; Initialize the 8251A UART
+   20/   6 : CD 10 00                   	CALL	LCD_INIT
+   21/   9 : CD 26 00                   	CALL	INIT_CGRAM
+   22/   C : CD 3E 00                   	CALL	LCD_OUT
+   23/   F : CF                         	RST	1
+   24/  10 :                            
+   25/  10 :                            
+   26/  10 :                            LCD_INIT:
+   27/  10 : 3E 38                      	MVI	A, 38h
+   28/  12 : D3 20                      	OUT	20h
+   29/  14 : CD A5 00                   	CALL	DELAY
+   30/  17 : 3E 0C                      	MVI	A, 00001100b
+   31/  19 : D3 20                      	OUT	20h
+   32/  1B : CD A5 00                   	CALL	DELAY
+   33/  1E : 3E 01                      	MVI	A, 1
+   34/  20 : D3 20                      	OUT	20h
+   35/  22 : CD A5 00                   	CALL	DELAY
+   36/  25 : C9                         	RET
+   37/  26 :                            
+   38/  26 :                            INIT_CGRAM:
+   39/  26 : 3E 40                      	MVI	A, 40h		; Set cgram address 0
+   40/  28 : D3 20                      	OUT	20h
+   41/  2A : CD A5 00                   	CALL	DELAY
+   42/  2D : 06 40                      	MVI	B, 8*8		; Size of cgram data
+   43/  2F : 21 B3 00                   	LXI	H, cgram
+   44/  32 :                            .loop:
+   45/  32 : 7E                         	MOV	A, M
+   46/  33 : D3 21                      	OUT	21h
+   47/  35 : CD A5 00                   	CALL	DELAY
+   48/  38 : 23                         	INX	H
+   49/  39 : 05                         	DCR	B
+   50/  3A : C2 32 00                   	JNZ	.loop
+   51/  3D : C9                         	RET
+   52/  3E :                            
+   53/  3E :                            LCD_OUT:
+   54/  3E : 3E 80                      	MVI	A, 80h
+   55/  40 : D3 20                      	OUT	20h
+   56/  42 : CD A5 00                   	CALL	DELAY
+   57/  45 : 21 F3 00                   	LXI	H, flag
+   58/  48 :                            .loop1:
+   59/  48 : 7E                         	MOV	A, M
+   60/  49 : A7                         	ANA	A
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 2 - 10.02.2024 11:13:10
+
+
+   61/  4A : CA 56 00                   	JZ	.row2
+   62/  4D : 23                         	INX	H
+   63/  4E : D3 21                      	OUT	21h
+   64/  50 : CD A5 00                   	CALL	DELAY
+   65/  53 : C3 48 00                   	JMP	.loop1
+   66/  56 :                            .row2:
+   67/  56 : 3E C0                      	MVI	A, 80h + 40h	; Goto second row
+   68/  58 : D3 20                      	OUT	20h
+   69/  5A : CD A5 00                   	CALL	DELAY
+   70/  5D : 23                         	INX	H
+   71/  5E :                            .loop2:
+   72/  5E : 7E                         	MOV	A, M
+   73/  5F : A7                         	ANA	A
+   74/  60 : CA 6C 00                   	JZ	.return
+   75/  63 : D3 21                      	OUT	21h
+   76/  65 : 23                         	INX	H
+   77/  66 : CD A5 00                   	CALL	DELAY
+   78/  69 : C3 5E 00                   	JMP	.loop2
+   79/  6C :                            .return:
+   80/  6C : C9                         	RET
+   81/  6D :                            
+   82/  6D :                            
+   83/  6D :                            USART_INIT:
+   84/  6D : AF                         	XRA	A		; Insure not setup mode
+   85/  6E : D3 09                      	OUT	9		; Write once
+   86/  70 : D3 09                      	OUT	9		; Write again (now in operate mode)
+   87/  72 : D3 09                      	OUT	9		; Write again (now in operate mode)
+   88/  74 : 3E 40                      	MVI	A,01000000b	; Reset
+   89/  76 : D3 09                      	OUT	9		; write it
+   90/  78 : 3E 4E                      	MVI	A,01001110b	; 8 data, 1 stop, x16
+   91/  7A : D3 09                      	OUT	9		; Write it
+   92/  7C : 3E 37                      	MVI	A,00110111b	; RTS,DTR,Enable RX,TX
+   93/  7E : D3 09                      	OUT	9		; Write it
+   94/  80 : C9                         	RET
+   95/  81 :                            
+   96/  81 :                            ; Read character from USART
+   97/  81 :                            USART_IN:
+   98/  81 : DB 09                      	IN USART_CMD		; Read USART status
+   99/  83 : E6 02                      	ANI 2			; Test RxRdy bit
+  100/  85 : CA 81 00                   	JZ USART_IN		; Wait for the data
+  101/  88 : DB 08                      	IN USART_DATA		; Read character
+  102/  8A : C9                         	RET
+  103/  8B :                            
+  104/  8B :                            ; Write character to USART
+  105/  8B :                            USART_OUT:
+  106/  8B : F5                         		PUSH	PSW 	; Save char
+  107/  8C :                            OUT1:
+  108/  8C : DB 09                      	IN	9		; Get 8251 status
+  109/  8E : 0F                         	RRC			; Test TX bit
+  110/  8F : D2 8C 00                   	JNC	OUT1		; Not ready
+  111/  92 : F1                         	POP	PSW		; Restore char
+  112/  93 : D3 08                      	OUT	8		; Write 8251 data
+  113/  95 : C9                         	RET
+  114/  96 :                            ; Display message [HL]
+  115/  96 :                            ;
+  116/  96 :                            PRTSTR:
+  117/  96 : 7E                         	MOV	A,M		; Get byte from message
+  118/  97 : 23                         	INX	H		; Advance to next
+  119/  98 : A7                         	ANA	A		; End of message?
+  120/  99 : C8                         	RZ			; Yes, exit
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 3 - 10.02.2024 11:13:10
+
+
+  121/  9A : CD 8B 00                   	CALL	USART_OUT	; Output the character
+  122/  9D : C3 96 00                   	JMP	PRTSTR		; And proceed
+  123/  A0 :                            
+  124/  A0 :                            PRINT_MSG:
+  125/  A0 : E1                         	POP	H
+  126/  A1 : CD 96 00                   	CALL	PRTSTR
+  127/  A4 : E9                         	PCHL
+  128/  A5 :                            
+  129/  A5 :                            DELAY:
+  130/  A5 : C5                         	PUSH	B		; save BC
+  131/  A6 : F5                         	PUSH	PSW
+  132/  A7 : 01 00 10                   	LXI	B, 1000h	; clear BC
+  133/  AA :                            .loop:				; delay loop
+  134/  AA : 0B                         	DCX	B		; decrement BC
+  135/  AB : 78                         	MOV	A, B
+  136/  AC : B1                         	ORA	C
+  137/  AD : C2 AA 00                   	JNZ	.loop		; if not zero loop again
+  138/  B0 : F1                         	POP	PSW
+  139/  B1 : C1                         	POP	B		; restore BC
+  140/  B2 : C9                         	RET			; return
+  141/  B3 :                            
+  142/  B3 :                            
+  143/  B3 :                            
+  144/  B3 :                            cgram:
+  145/  B3 :                            .c:
+  146/  B3 : 00                         	DB 	00000b
+  147/  B4 : 00                         	DB	00000b
+  148/  B5 : 0E                         	DB	01110b
+  149/  B6 : 10                         	DB	10000b
+  150/  B7 : 10                         	DB	10000b
+  151/  B8 : 11                         	DB	10001b
+  152/  B9 : 0E                         	DB	01110b
+  153/  BA : 00                         	DB	00000b
+  154/  BB :                            .u:
+  155/  BB : 00                         	DB	00000b
+  156/  BC : 00                         	DB	00000b
+  157/  BD : 11                         	DB	10001b
+  158/  BE : 11                         	DB	10001b
+  159/  BF : 11                         	DB	10001b
+  160/  C0 : 13                         	DB	10011b
+  161/  C1 : 0D                         	DB	01101b
+  162/  C2 : 00                         	DB	00000b
+  163/  C3 :                            .s:
+  164/  C3 : 00                         	DB	00000b
+  165/  C4 : 00                         	DB	00000b
+  166/  C5 : 0E                         	DB	01110b
+  167/  C6 : 10                         	DB	10000b
+  168/  C7 : 0E                         	DB	01110b
+  169/  C8 : 01                         	DB	00001b
+  170/  C9 : 1E                         	DB	11110b
+  171/  CA : 00                         	DB	00000b
+  172/  CB :                            .t:
+  173/  CB : 08                         	DB	01000b
+  174/  CC : 08                         	DB	01000b
+  175/  CD : 1C                         	DB	11100b
+  176/  CE : 08                         	DB	01000b
+  177/  CF : 08                         	DB	01000b
+  178/  D0 : 09                         	DB	01001b
+  179/  D1 : 06                         	DB	00110b
+  180/  D2 : 00                         	DB	00000b
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 4 - 10.02.2024 11:13:10
+
+
+  181/  D3 :                            .o:
+  182/  D3 : 00                         	DB	00000b
+  183/  D4 : 00                         	DB	00000b
+  184/  D5 : 0E                         	DB	01110b
+  185/  D6 : 11                         	DB	10001b
+  186/  D7 : 11                         	DB	10001b
+  187/  D8 : 11                         	DB	10001b
+  188/  D9 : 0E                         	DB	01110b
+  189/  DA : 00                         	DB	00000b
+  190/  DB :                            .m:
+  191/  DB : 00                         	DB	00000b
+  192/  DC : 00                         	DB	00000b
+  193/  DD : 1A                         	DB	11010b
+  194/  DE : 15                         	DB	10101b
+  195/  DF : 15                         	DB	10101b
+  196/  E0 : 11                         	DB	10001b
+  197/  E1 : 11                         	DB	10001b
+  198/  E2 : 00                         	DB	00000b
+  199/  E3 :                            .h:
+  200/  E3 : 10                         	DB	10000b
+  201/  E4 : 10                         	DB	10000b
+  202/  E5 : 16                         	DB	10110b
+  203/  E6 : 19                         	DB	11001b
+  204/  E7 : 11                         	DB	10001b
+  205/  E8 : 11                         	DB	10001b
+  206/  E9 : 11                         	DB	10001b
+  207/  EA : 00                         	DB	00000b
+  208/  EB :                            .a:
+  209/  EB : 00                         	DB	00000b
+  210/  EC : 00                         	DB	00000b
+  211/  ED : 0E                         	DB	01110b
+  212/  EE : 01                         	DB	00001b
+  213/  EF : 0F                         	DB	01111b
+  214/  F0 : 11                         	DB	10001b
+  215/  F1 : 0F                         	DB	01111b
+  216/  F2 : 00                         	DB	00000b
+  217/  F3 :                            
+  218/  F3 :                            flag:
+  219/  F3 :                            ;		            c    u    s    t    o    m
+  220/  F3 : 44 49 53 4F 42 45 59 28 08 	DB	"DISOBEY(", C_c, C_u, C_s, C_t, C_o, C_m, 0
+        FC : 09 0A 0B 0C 0D 00         
+  221/ 102 :                            ;		c    h    a    r    a    c   t     er    s      r   u   le
+  222/ 102 : 08 0E 0F 72 0F 08 0B 65 72 	DB	C_c, C_h, C_a, "r", C_a, C_c, C_t, "er", C_s, " r", C_u, "le)",0
+       10B : 0A 20 72 09 6C 65 29 00   
+  223/ 113 :                            
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 5 - 10.02.2024 11:13:10
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "aarch64-apple-darwin" - |
+*CASESENSITIVE :                  0 - |  CGRAM :                        0B3 C |
+*CGRAM.A :                      0EB C | *CGRAM.C :                      0B3 C |
+*CGRAM.H :                      0E3 C | *CGRAM.M :                      0DB C |
+*CGRAM.O :                      0D3 C | *CGRAM.S :                      0C3 C |
+*CGRAM.T :                      0CB C | *CGRAM.U :                      0BB C |
+*CONSTPI :        3.141592653589793 - |  C_A :                           0F - |
+ C_C :                            8 - |  C_H :                           0E - |
+ C_M :                           0D - |  C_O :                           0C - |
+ C_S :                           0A - |  C_T :                           0B - |
+ C_U :                            9 - | *DATE :                "10.02.2024" - |
+ DELAY :                        0A5 C |  DELAY.LOOP :                   0AA C |
+*FALSE :                          0 - |  FLAG :                         0F3 C |
+*FULLPMMU :                       1 - | *HAS64 :                          1 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+ INIT_CGRAM :                    26 C |  INIT_CGRAM.LOOP :               32 C |
+*INSUPMODE :                      0 - |  LCD_INIT :                      10 C |
+ LCD_OUT :                       3E C |  LCD_OUT.LOOP1 :                 48 C |
+ LCD_OUT.LOOP2 :                 5E C |  LCD_OUT.RETURN :                6C C |
+ LCD_OUT.ROW2 :                  56 C | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                      8085 - |
+*MOMCPUNAME :                "8085" - | *NESTMAX :                      100 - |
+ OUT1 :                          8C C | *PADDING :                        1 - |
+*PRINT_MSG :                    0A0 C |  PRTSTR :                        96 C |
+*RELAXED :                        0 - | *START :                          0 C |
+*TIME :                  "11:13:10" - | *TRUE :                           1 - |
+ USART_CMD :                      9 - |  USART_DATA :                     8 - |
+ USART_IN :                      81 C |  USART_INIT :                    6D C |
+ USART_OUT :                     8B C | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     58 symbols
+     31 unused symbols
+
+ AS V1.42 Beta [Bld 260] - Source File source.asm - Page 6 - 10.02.2024 11:13:10
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+    223 lines source file
+      2 passes
+      0 errors
+      0 warnings

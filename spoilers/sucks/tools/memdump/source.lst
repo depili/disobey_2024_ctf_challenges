@@ -1,0 +1,83 @@
+ AS V1.42 Beta [Bld 252] - Source File source.asm - Page 1 - 12.11.2023 18:23:54
+
+
+    1/   0 :                            	CPU 8085
+    2/BF02 :                            	ORG 0bf02h
+    3/BF02 :                            
+    4/BF02 :                            
+    5/BF02 : 21 00 00                   	LXI H, 0
+    6/BF05 :                            loop:
+    7/BF05 : 7E                         	MOV A, M
+    8/BF06 : CD 10 BF                   	CALL HPR
+    9/BF09 : 23                         	INX H
+   10/BF0A : 7C                         	MOV A, H
+   11/BF0B : B5                         	ORA L
+   12/BF0C : C2 05 BF                   	JNZ loop
+   13/BF0F : CF                         	RST 1
+   14/BF10 :                            
+   15/BF10 :                            
+   16/BF10 :                            ; Display A in hexidecimal
+   17/BF10 :                            ;
+   18/BF10 : F5                         HPR:	PUSH	PSW		; Save low digit
+   19/BF11 : 0F                         	RRC			; Shift
+   20/BF12 : 0F                         	RRC			; high
+   21/BF13 : 0F                         	RRC			; digit
+   22/BF14 : 0F                         	RRC			; into low
+   23/BF15 : CD 19 BF                   	CALL	HOUT		; Display a single digit
+   24/BF18 : F1                         	POP	PSW		; Restore low digit
+   25/BF19 : E6 0F                      HOUT:	ANI	0Fh		; Remove high digit
+   26/BF1B : FE 0A                      	CPI	10		; Convert to ASCII
+   27/BF1D : DE 2F                      	SBI	2Fh
+   28/BF1F : 27                         	DAA
+   29/BF20 : C3 23 BF                   	JMP	OUT		; And output it
+   30/BF23 :                            
+   31/BF23 :                            ; Blocking print character to UART
+   32/BF23 :                            OUT:
+   33/BF23 : F5                         	PUSH	PSW		; Save char
+   34/BF24 :                            OUT1:
+   35/BF24 : DB 09                      	IN	9			; Get 8251 status
+   36/BF26 : 0F                         	RRC				; Test TX bit
+   37/BF27 : D2 24 BF                   	JNC	OUT1		; Not ready
+   38/BF2A : F1                         	POP	PSW			; Restore char
+   39/BF2B : D3 08                      	OUT	8			; Write 8251 data
+   40/BF2D : C9                         	RET
+ AS V1.42 Beta [Bld 252] - Source File source.asm - Page 2 - 12.11.2023 18:23:54
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "aarch64-apple-darwin" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "12.11.2023" - | *FALSE :                          0 - |
+*FULLPMMU :                       1 - | *HAS64 :                          1 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+ HOUT :                       0BF19 C |  HPR :                        0BF10 C |
+*INSUPMODE :                      0 - | *LISTON :                         1 - |
+ LOOP :                       0BF05 C | *MACEXP :                         7 - |
+*MOMCPU :                      8085 - | *MOMCPUNAME :                "8085" - |
+*NESTMAX :                      100 - |  OUT :                        0BF23 C |
+ OUT1 :                       0BF24 C | *PADDING :                        1 - |
+*RELAXED :                        0 - | *TIME :                  "18:23:54" - |
+*TRUE :                           1 - | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     26 symbols
+     21 unused symbols
+
+ AS V1.42 Beta [Bld 252] - Source File source.asm - Page 3 - 12.11.2023 18:23:54
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.01 seconds assembly time
+
+     40 lines source file
+      2 passes
+      0 errors
+      0 warnings

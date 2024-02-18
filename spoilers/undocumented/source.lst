@@ -1,0 +1,228 @@
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 1 - 22.11.2023 08:51:07
+
+
+    1/   0 :                            	CPU 8085UNDOC
+    2/   0 :                            
+    3/   0 : =8000H                     BASE EQU 8000h
+    4/   0 : =0C000H                    STACK EQU 0c000h
+    5/   0 : =0D000H                    DEST EQU 0d000h
+    6/   0 : =0E000H                    DEST2 EQU 0e000h
+    7/   0 : =0EE00H                    HL_STORE EQU 0ee00h
+    8/   0 : =0EF00H                    DE_STORE EQU 0ef00h
+    9/   0 :                            
+   10/8000 :                            	ORG BASE
+   11/8000 :                            
+   12/8000 : F3                         	DI
+   13/8001 : C3 00 81                   	JMP START
+   14/8004 :                            
+   15/8038 :                            	ORG BASE+38h ; RST 8
+   16/8038 : C3 95 81                   	JMP RETURN_PC
+   17/803B :                            
+   18/803B :                            
+   19/8100 :                            	ORG BASE+100h
+   20/8100 :                            START:
+   21/8100 : 21 00 C0                   	LXI H, STACK
+   22/8103 : F9                         	SPHL
+   23/8104 : CD 2F 82                   	CALL UART_INIT
+   24/8107 : CD 95 81                   	CALL RETURN_PC
+   25/810A : 28 50                      rSP:	LDHI	NEW_STACK - rSP	; "undocumented" instruction
+   26/810C : EB                         	XCHG
+   27/810D : F9                         	SPHL
+   28/810E : C9                         	RET
+   29/810F :                            
+   30/810F :                            FLAG:
+   31/810F :                            	; DB "DISOBEY[sometimes vendors don't tell about all of the features!]"
+   32/810F : 02 47 0C 43 FF 46 13 48 2B 	DB 002h, 047h, 00Ch, 043h, 0FFh, 046h, 013h, 048h, 02Bh, 044h, 029h, 03Ch, 038h, 031h, 03Ch, 029h, 04Ah, 0D6h, 0A0h, 0C5h, 0A9h, 0BBh, 0B4h, 0BEh, 0B5h, 06Bh, 0F9h, 076h, 0F8h, 02Fh, 045h, 0DBh, 099h, 0CCh, 0A0h, 0CCh, 054h, 00Dh, 055h, 01Ah, 05Bh, 019h, 007h, 05Ah, 012h, 05Ah, 0C6h, 0A9h, 0BDh, 063h, 011h, 057h, 00Eh, 012h, 054h, 011h, 050h, 024h, 051h, 021h, 044h, 02Fh, 0F2h, 06Bh
+      8118 : 44 29 3C 38 31 3C 29 4A D6
+      8121 : A0 C5 A9 BB B4 BE B5 6B F9
+      812A : 76 F8 2F 45 DB 99 CC A0 CC
+      8133 : 54 0D 55 1A 5B 19 07 5A 12
+      813C : 5A C6 A9 BD 63 11 57 0E 12
+      8145 : 54 11 50 24 51 21 44 2F F2
+      814E : 6B                        
+   33/814F :                            FLAG_END:
+   34/814F :                            
+   35/814F :                            FLAG_OUTPUT3:				; Setup for decrypting the previously encrypted flag
+   36/814F : 21 00 D0                   	LXI	H, DEST
+   37/8152 : 11 00 E0                   	LXI D, DEST2
+   38/8155 : 0E 40                      	MVI C, FLAG_END - FLAG
+   39/8157 : 06 42                      	MVI B, 42h
+   40/8159 : C9                         	RET
+   41/815A :                            
+   42/815A :                            NEW_STACK:
+   43/815A : 0F 82                      	DW FLAG_OUTPUT1
+   44/815C : 98 81                      	DW FLAG_OUTPUT4
+   45/815E : 4F 81                      	DW FLAG_OUTPUT3
+   46/8160 : 98 81                      	DW FLAG_OUTPUT4
+   47/8162 :                            
+   48/8162 :                            	; Some random data
+   49/8162 : F2 92 F3 32 80 BF FC 23 95 	DB 0f2h, 092h, 0f3h, 032h, 080h, 0bfh, 0fch, 023h, 095h, 0b2h, 03ch, 036h, 069h, 033h, 0a7h, 030h, 014h, 0b9h, 0efh, 066h, 068h, 013h, 096h, 091h, 0a5h, 063h, 023h, 0ech, 0fch, 09ch, 0c8h, 06dh, 07h, 0a4h, 0e1h, 095h, 092h, 0bbh, 0eh, 0e1h, 0fdh, 0d6h, 09dh, 0c1h, 0f8h, 02ch, 08bh, 0b5h, 06ch, 068h, 051h
+      816B : B2 3C 36 69 33 A7 30 14 B9
+      8174 : EF 66 68 13 96 91 A5 63 23
+      817D : EC FC 9C C8 6D 07 A4 E1 95
+      8186 : 92 BB 0E E1 FD D6 9D C1 F8
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 2 - 22.11.2023 08:51:07
+
+
+      818F : 2C 8B B5 6C 68 51         
+   50/8195 :                            
+   51/8195 :                            RETURN_PC:	; Get the calling program counter to HL
+   52/8195 : E1                         	POP H
+   53/8196 : E5                         	PUSH H
+   54/8197 : C9                         	RET
+   55/8198 :                            
+   56/8198 :                            FLAG_OUTPUT4:				; Flag decryption routine
+   57/8198 : 7E                         	MOV A, M
+   58/8199 : 22 00 EE                   	SHLD HL_STORE
+   59/819C :                            
+   60/819C : 50                         	MOV D, B
+   61/819D : 59                         	MOV E, C
+   62/819E :                            
+   63/819E : 06 80                      	MVI B, 80h
+   64/81A0 : 4A                         	MOV C, D
+   65/81A1 : 26 00                      	MVI H, 0
+   66/81A3 : 6F                         	MOV L, A
+   67/81A4 : 09                         	DAD B
+   68/81A5 : 7D                         	MOV A, L
+   69/81A6 :                            
+   70/81A6 : 42                         	MOV B, D
+   71/81A7 : 4B                         	MOV C, E
+   72/81A8 :                            
+   73/81A8 : 11 00 EE                   	LXI D, HL_STORE
+   74/81AB : ED                         	LHLX D					; "undocumented" instruction
+   75/81AC : CD 24 82                   	CALL UART_OUT
+   76/81AF : 46                         	MOV B, M
+   77/81B0 : 23                         	INX H
+   78/81B1 : 13                         	INX D
+   79/81B2 : 0D                         	DCR C
+   80/81B3 : C2 98 81                   	JNZ FLAG_OUTPUT4
+   81/81B6 : CF                         	RST 1
+   82/81B7 :                            
+   83/81B7 :                            	; some more random data
+   84/81B7 : 78 10 42 DA 66 69 DD EA B7 	DB 078h, 010h, 042h, 0dah, 066h, 069h, 0ddh, 0eah, 0b7h, 02h, 012h, 032h, 05eh, 036h, 0fch, 0f5h, 040h, 084h, 0ech, 012h, 0eeh, 03bh, 023h, 01dh, 0abh, 0cah, 069h, 0c4h, 089h, 0ffh, 043h, 0c4h, 03dh, 0d4h, 041h, 03dh, 0aeh, 01h, 0f3h, 0e4h, 039h, 0ach, 051h, 064h, 082h, 0beh, 03fh, 010h, 093h
+      81C0 : 02 12 32 5E 36 FC F5 40 84
+      81C9 : EC 12 EE 3B 23 1D AB CA 69
+      81D2 : C4 89 FF 43 C4 3D D4 41 3D
+      81DB : AE 01 F3 E4 39 AC 51 64 82
+      81E4 : BE 3F 10 93               
+   85/81E8 :                            
+   86/81E8 :                            FLAG_OUTPUT2:				; Flag encryption routine, uses mod 256 substraction via undocumented instructions
+   87/81E8 : 7E                         	MOV A, M
+   88/81E9 : 22 00 EE                   	SHLD HL_STORE
+   89/81EC : EB                         	XCHG
+   90/81ED : 22 00 EF                   	SHLD DE_STORE
+   91/81F0 : 50                         	MOV D, B
+   92/81F1 : 59                         	MOV E, C
+   93/81F2 : 06 80                      	MVI B, 80h
+   94/81F4 : 4A                         	MOV C, D
+   95/81F5 : 26 00                      	MVI H, 0
+   96/81F7 : 6F                         	MOV L, A
+   97/81F8 : 08                         	DSUB B					; "Undocumented instruction"
+   98/81F9 : 7D                         	MOV A, L
+   99/81FA : 42                         	MOV B, D
+  100/81FB : 4B                         	MOV C, E
+  101/81FC : 2A 00 EF                   	LHLD DE_STORE
+  102/81FF : EB                         	XCHG
+  103/8200 : 2A 00 EE                   	LHLD HL_STORE
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 3 - 22.11.2023 08:51:07
+
+
+  104/8203 :                            	;ADD B
+  105/8203 : 12                         	STAX D
+  106/8204 : 47                         	MOV B, A
+  107/8205 : 23                         	INX H
+  108/8206 : 13                         	INX D
+  109/8207 : 0D                         	DCR C
+  110/8208 : C2 E8 81                   	JNZ FLAG_OUTPUT2
+  111/820B : 3E 00                      	MVI A, 0
+  112/820D : 77                         	MOV M, A
+  113/820E :                            	; RST 1
+  114/820E : C9                         	RET
+  115/820F :                            
+  116/820F :                            FLAG_OUTPUT1:				; Setup for flag encryption / decryption
+  117/820F : 21 0F 81                   	LXI	H, FLAG
+  118/8212 : 11 00 D0                   	LXI D, DEST
+  119/8215 : 0E 40                      	MVI C, FLAG_END - FLAG
+  120/8217 : 06 42                      	MVI B, 42h
+  121/8219 : C9                         	RET
+  122/821A :                            
+  123/821A :                            PRINT_STRING:
+  124/821A : 7E                         		MOV	A,M				; Get byte from message
+  125/821B : 23                         		INX	H				; Advance to next
+  126/821C : A7                         		ANA	A				; End of message?
+  127/821D : C8                         		RZ					; Yes, exit
+  128/821E : CD 24 82                   		CALL UART_OUT		; Output the character
+  129/8221 : C3 1A 82                   		JMP	PRINT_STRING	; And proceed
+  130/8224 :                            
+  131/8224 :                            ; Blocking print character to UART
+  132/8224 :                            UART_OUT:
+  133/8224 : F5                         	PUSH	PSW		; Save char
+  134/8225 :                            OUT1:
+  135/8225 : DB 09                      	IN	9			; Get 8251 status
+  136/8227 : 0F                         	RRC				; Test TX bit
+  137/8228 : D2 25 82                   	JNC	OUT1		; Not ready
+  138/822B : F1                         	POP	PSW			; Restore char
+  139/822C : D3 08                      	OUT	8			; Write 8251 data
+  140/822E : C9                         	RET
+  141/822F :                            
+  142/822F :                            UART_INIT:
+  143/822F : AF                         		XRA	A			; Insure not setup mode
+  144/8230 : D3 09                      		OUT	9			; Write once
+  145/8232 : D3 09                      		OUT	9			; Write again (now in operate mode)
+  146/8234 : D3 09                      		OUT	9			; Write again (now in operate mode)
+  147/8236 : 3E 40                      		MVI	A,01000000b	; Reset
+  148/8238 : D3 09                      		OUT	9			; write it
+  149/823A : 3E 4E                      		MVI	A,01001110b	; 8 data, 1 stop, x16
+  150/823C : D3 09                      		OUT	9			; Write it
+  151/823E : 3E 37                      		MVI	A,00110111b	; RTS,DTR,Enable RX,TX
+  152/8240 : D3 09                      		OUT	9			; Write it
+  153/8242 : C9                         		RET
+  154/8243 :                            
+  155/8243 :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 4 - 22.11.2023 08:51:07
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :  "x86_64-apple-osx" - |  BASE :                        8000 - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "22.11.2023" - |  DEST :                       0D000 - |
+ DEST2 :                      0E000 - |  DE_STORE :                   0EF00 - |
+*FALSE :                          0 - |  FLAG :                        810F C |
+ FLAG_END :                    814F C |  FLAG_OUTPUT1 :                820F C |
+ FLAG_OUTPUT2 :                81E8 C |  FLAG_OUTPUT3 :                814F C |
+ FLAG_OUTPUT4 :                8198 C | *FULLPMMU :                       1 - |
+*HAS64 :                          1 - | *HASFPU :                         0 - |
+*HASPMMU :                        0 - |  HL_STORE :                   0EE00 - |
+*INSUPMODE :                      0 - | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                    8085DC - |
+*MOMCPUNAME :           "8085UNDOC" - | *NESTMAX :                      100 - |
+ NEW_STACK :                   815A C |  OUT1 :                        8225 C |
+*PADDING :                        1 - |  PRINT_STRING :                821A C |
+*RELAXED :                        0 - |  RETURN_PC :                   8195 C |
+ RSP :                         810A C |  STACK :                      0C000 - |
+ START :                       8100 C | *TIME :                  "08:51:07" - |
+*TRUE :                           1 - |  UART_INIT :                   822F C |
+ UART_OUT :                    8224 C | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     41 symbols
+     21 unused symbols
+
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 5 - 22.11.2023 08:51:07
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+    155 lines source file
+      2 passes
+      0 errors
+      0 warnings

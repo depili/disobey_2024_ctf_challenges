@@ -1,0 +1,324 @@
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 1 - 18.11.2023 16:59:03
+
+
+    1/   0 :                            	CPU 8085
+    2/   0 :                            
+    3/   0 : =0H                        BASE EQU 0h
+    4/   0 : =0BF00H                    INPUT EQU 0BF00h
+    5/   0 : =0C000H                    STACK EQU 0C000h
+    6/   0 :                            
+    7/   0 :                            	ORG BASE
+    8/   0 :                            
+    9/   0 : F3                         	DI
+   10/   1 : C3 00 01                   	JMP START
+   11/   4 :                            
+   12/ 100 :                            	ORG BASE+100h
+   13/ 100 :                            START:
+   14/ 100 : 21 00 BF                       LXI H, INPUT		; clear memory 0xb000 - 0xffff
+   15/ 103 : 3E 00                          MVI A, 0
+   16/ 105 : 06 FF                          MVI B, 0ffh
+   17/ 107 :                            m_c:
+   18/ 107 : 77                         	MOV M, A
+   19/ 108 : 23                         	INX H
+   20/ 109 : 05                         	DCR B
+   21/ 10A : B8                         	CMP B
+   22/ 10B : C2 07 01                   	JNZ m_c
+   23/ 10E : 21 00 C0                   	LXI H, STACK
+   24/ 111 : F9                             SPHL				; set the stack pointer
+   25/ 112 : CD C5 01                       CALL UART_INIT		; init the UART
+   26/ 115 : 21 00 15                       LXI H, banner
+   27/ 118 : CD A6 01                       CALL PRINT_STRING
+   28/ 11B : CD 6D 01                       CALL READ_PW		; read the password inpu
+   29/ 11E : DA 2D 01                       JC ERROR			; if error print error message and restart
+   30/ 121 : CD 45 01                       CALL CHECK_PW		; check the password
+   31/ 124 : DA 2D 01                       JC ERROR			; if error print error message and restart
+   32/ 127 : CD 39 01                       CALL PRINT_FLAG1	; print flag1
+   33/ 12A : C3 00 01                       JMP START			; restart
+   34/ 12D :                            error:
+   35/ 12D : CD 33 01                   	CALL PRINT_ERROR	; print error message
+   36/ 130 : C3 00 01                   	JMP START			; restart
+   37/ 133 :                            
+   38/ 133 :                            PRINT_ERROR:
+   39/ 133 : 21 00 14                   	LXI H, ERROR_MSG
+   40/ 136 : C3 A6 01                   	JMP PRINT_STRING
+   41/ 139 :                            
+   42/ 139 :                            PRINT_FLAG1:
+   43/ 139 : 21 00 11                   	LXI H, FLAG1
+   44/ 13C : C3 A6 01                   	JMP PRINT_STRING
+   45/ 13F :                            
+   46/ 13F :                            PRINT_FLAG2:
+   47/ 13F : 21 00 12                   	LXI H, FLAG2
+   48/ 142 : C3 A6 01                   	JMP PRINT_STRING
+   49/ 145 :                            
+   50/ 145 :                            CHECK_PW
+   51/ 145 : 21 00 10                   	LXI H, PW			; load HL = stored PW
+   52/ 148 : 11 00 BF                   	LXI D, INPUT		; load DE = input buffer
+   53/ 14B :                            pw_loop:
+   54/ 14B : 7E                         	MOV A, M			; load A from PW
+   55/ 14C : EB                         	XCHG				; Exchange HL and DE
+   56/ 14D : 46                         	MOV B, M			; load B from input
+   57/ 14E : EB                         	XCHG				; exchange HL and DE
+   58/ 14F : A7                         	ANA A				; check A for zero
+   59/ 150 : CA 87 01                   	JZ RET_OK			; if so, return OK
+   60/ 153 : B8                         	CMP B				; compare A and B
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 2 - 18.11.2023 16:59:03
+
+
+   61/ 154 : C2 85 01                   	JNZ RET_ERR			; if not zero return error
+   62/ 157 : 23                         	INX H				; increment HL
+   63/ 158 : 13                         	INX D				; increment DE
+   64/ 159 : CD 5F 01                   	CALL DELAY			; do a delay
+   65/ 15C : C3 4B 01                   	JMP pw_loop			; loop again
+   66/ 15F :                            
+   67/ 15F :                            DELAY:
+   68/ 15F : C5                         	PUSH B		; save BC
+   69/ 160 : F5                         	PUSH PSW
+   70/ 161 : 01 00 40                   	LXI B, 4000h	; clear BC
+   71/ 164 :                            d_loop:			; delay loop
+   72/ 164 : 0B                         	DCX B		; decrement BC
+   73/ 165 : 78                         	MOV A, B
+   74/ 166 : B1                         	ORA C
+   75/ 167 : C2 64 01                   	JNZ d_loop	; if not zero loop again
+   76/ 16A : F1                         	POP PSW
+   77/ 16B : C1                         	POP B		; restore BC
+   78/ 16C : C9                         	RET			; return
+   79/ 16D :                            
+   80/ 16D :                            READ_PW:
+   81/ 16D : 21 00 BF                   	LXI H, INPUT	; set HL to input buffer
+   82/ 170 :                            in_loop:
+   83/ 170 : CD B0 01                   	CALL UART_IN	; get a character from the UART
+   84/ 173 : FE 0D                      	CPI "\r"		; compare the character to \n
+   85/ 175 : CA 87 01                   	JZ RET_OK		; if so, return ok
+   86/ 178 : 77                         	MOV M, A		; store the character
+   87/ 179 : 23                         	INX H			; increment HL
+   88/ 17A : CD 8A 01                   	CALL STRLEN		; check the length
+   89/ 17D : FE 10                      	CPI 16			; compare it to 16
+   90/ 17F : D2 85 01                   	JNC RET_ERR		; if over return error
+   91/ 182 : C3 70 01                   	JMP in_loop		; continue loop
+   92/ 185 :                            RET_ERR:
+   93/ 185 : 37                         	STC				; set carry flag
+   94/ 186 : C9                         	RET				; return
+   95/ 187 :                            RET_OK:
+   96/ 187 : 37                         	STC				; set carry flag
+   97/ 188 : 3F                         	CMC				; complement carry flag
+   98/ 189 : C9                         	RET				; return
+   99/ 18A :                            
+  100/ 18A :                            STRLEN:
+  101/ 18A : E5                         	PUSH H			; save HL
+  102/ 18B : C5                         	PUSH B			; save BC
+  103/ 18C : 01 00 00                   	LXI B, 0		; clear BC
+  104/ 18F : 21 00 BF                   	LXI H, INPUT	; load buffer address
+  105/ 192 :                            LOOP:
+  106/ 192 : 7E                         	MOV A, M		; Load A from HL
+  107/ 193 : A7                         	ANA A			; check for zero
+  108/ 194 : CA A2 01                   	JZ RET			; if zero return
+  109/ 197 : 23                         	INX H			; increment HL
+  110/ 198 : 04                         	INR B			; increment BC
+  111/ 199 : 78                         	MOV A, B
+  112/ 19A : FE 20                      	CPI 32			; compare to 32
+  113/ 19C : D2 A2 01                   	JNC RET			; if over return
+  114/ 19F : C3 92 01                   	JMP LOOP		; loop again
+  115/ 1A2 :                            RET:
+  116/ 1A2 : 78                         	MOV A, B		; set return value
+  117/ 1A3 : C1                         	POP B			; restrore BC
+  118/ 1A4 : E1                         	POP H			; restore HL
+  119/ 1A5 : C9                             RET				; return
+  120/ 1A6 :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 3 - 18.11.2023 16:59:03
+
+
+  121/ 1A6 :                            ; Display message [HL]
+  122/ 1A6 :                            ;
+  123/ 1A6 :                            PRINT_STRING:
+  124/ 1A6 : 7E                         		MOV	A,M				; Get byte from message
+  125/ 1A7 : 23                         		INX	H				; Advance to next
+  126/ 1A8 : A7                         		ANA	A				; End of message?
+  127/ 1A9 : C8                         		RZ					; Yes, exit
+  128/ 1AA : CD BA 01                   		CALL UART_OUT		; Output the character
+  129/ 1AD : C3 A6 01                   		JMP	PRINT_STRING	; And proceed
+  130/ 1B0 :                            
+  131/ 1B0 :                            ; Blocking read character from UART
+  132/ 1B0 :                            UART_IN:
+  133/ 1B0 : DB 09                      	IN	9			; Get 8251 status
+  134/ 1B2 : E6 02                      	ANI	00000010b	; Test for ready
+  135/ 1B4 : CA B0 01                   	JZ UART_IN		; No char
+  136/ 1B7 : DB 08                      	IN	8			; Get 8251 data
+  137/ 1B9 : C9                         	RET
+  138/ 1BA :                            
+  139/ 1BA :                            ; Blocking print character to UART
+  140/ 1BA :                            UART_OUT:
+  141/ 1BA : F5                         	PUSH	PSW		; Save char
+  142/ 1BB :                            OUT1:
+  143/ 1BB : DB 09                      	IN	9			; Get 8251 status
+  144/ 1BD : 0F                         	RRC				; Test TX bit
+  145/ 1BE : D2 BB 01                   	JNC	OUT1		; Not ready
+  146/ 1C1 : F1                         	POP	PSW			; Restore char
+  147/ 1C2 : D3 08                      	OUT	8			; Write 8251 data
+  148/ 1C4 : C9                         	RET
+  149/ 1C5 :                            
+  150/ 1C5 :                            UART_INIT:
+  151/ 1C5 : AF                         		XRA	A			; Insure not setup mode
+  152/ 1C6 : D3 09                      		OUT	9			; Write once
+  153/ 1C8 : D3 09                      		OUT	9			; Write again (now in operate mode)
+  154/ 1CA : D3 09                      		OUT	9			; Write again (now in operate mode)
+  155/ 1CC : 3E 40                      		MVI	A,01000000b	; Reset
+  156/ 1CE : D3 09                      		OUT	9			; write it
+  157/ 1D0 : 3E 4E                      		MVI	A,01001110b	; 8 data, 1 stop, x16
+  158/ 1D2 : D3 09                      		OUT	9			; Write it
+  159/ 1D4 : 3E 37                      		MVI	A,00110111b	; RTS,DTR,Enable RX,TX
+  160/ 1D6 : D3 09                      		OUT	9			; Write it
+  161/ 1D8 : C9                         		RET
+  162/ 1D9 :                            
+  163/ 1D9 :                            
+  164/1000 :                            	ORG BASE + 1000h
+  165/1000 : 74 65 64 64 79 62 65 61 72 PW:	DB "teddybear",0
+      1009 : 00                        
+  166/100A :                            
+  167/1100 :                            	ORG BASE + 1100h
+  168/1100 : 0A 0A 44 49 53 4F 42 45 59 flag1:	DB "\n\nDISOBEY[Great timing there dude]\n",0
+      1109 : 5B 47 72 65 61 74 20 74 69
+      1112 : 6D 69 6E 67 20 74 68 65 72
+      111B : 65 20 64 75 64 65 5D 0A 00
+  169/1124 :                            
+  170/1200 :                            	ORG BASE + 1200h
+  171/1200 : 0A 0A 44 49 53 4F 42 45 59 flag2:	DB "\n\nDISOBEY[Oh, you could jump here?]\n",0
+      1209 : 5B 4F 68 2C 20 79 6F 75 20
+      1212 : 63 6F 75 6C 64 20 6A 75 6D
+      121B : 70 20 68 65 72 65 3F 5D 0A
+      1224 : 00                        
+  172/1225 :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 4 - 18.11.2023 16:59:03
+
+
+  173/1300 :                            	ORG BASE + 1300h
+  174/1300 : 0A 0A 44 49 53 4F 42 45 59 flag3:	DB "\n\nDISOBEY[RCE is still the king baby!]\n",0
+      1309 : 5B 52 43 45 20 69 73 20 73
+      1312 : 74 69 6C 6C 20 74 68 65 20
+      131B : 6B 69 6E 67 20 62 61 62 79
+      1324 : 21 5D 0A 00               
+  175/1328 :                            
+  176/1400 :                            	ORG BASE + 1400h
+  177/1400 : 0A 50 61 73 73 77 6F 72 64 ERROR_MSG: DB "\nPassword error!\n\n", 0
+      1409 : 20 65 72 72 6F 72 21 0A 0A
+      1412 : 00                        
+  178/1413 :                            
+  179/1500 :                            	ORG BASE + 1500h
+  180/1500 :                            banner:
+  181/1500 : 28 20 29 20 29 20 2F 20 20 	DB "( ) ) /  \\( )( )( )( )/  \\ / __)(_  _)/  \\   (_  _)(  _)(  )  (  _) / _)/  \\(  \\/  )\n"
+      1509 : 5C 28 20 29 28 20 29 28 20
+      1512 : 29 28 20 29 2F 20 20 5C 20
+      151B : 2F 20 5F 5F 29 28 5F 20 20
+      1524 : 5F 29 2F 20 20 5C 20 20 20
+      152D : 28 5F 20 20 5F 29 28 20 20
+      1536 : 5F 29 28 20 20 29 20 20 28
+      153F : 20 20 5F 29 20 2F 20 5F 29
+      1548 : 2F 20 20 5C 28 20 20 5C 2F
+      1551 : 20 20 29 0A               
+  182/1555 : 20 29 20 20 5C 28 20 28 29  	DB " )  \\( () ))()(  \\\\//( () )\\__ \\  )( ( () )    )(   ) _) )(__  ) _)( (_( () ))    (\n"
+      155E : 20 29 29 28 29 28 20 20 5C
+      1567 : 5C 2F 2F 28 20 28 29 20 29
+      1570 : 5C 5F 5F 20 5C 20 20 29 28
+      1579 : 20 28 20 28 29 20 29 20 20
+      1582 : 20 20 29 28 20 20 20 29 20
+      158B : 5F 29 20 29 28 5F 5F 20 20
+      1594 : 29 20 5F 29 28 20 28 5F 28
+      159D : 20 28 29 20 29 29 20 20 20
+      15A6 : 20 28 0A                  
+  183/15A9 : 28 5F 29 5C 5F 29 5C 5F 5F 	DB "(_)\\_)\\__/ \\__/  (__) \\__/ (___/ (__) \\__/    (__) (___)(____)(___) \\__)\\__/(_/\\/\\_)\n"
+      15B2 : 2F 20 5C 5F 5F 2F 20 20 28
+      15BB : 5F 5F 29 20 5C 5F 5F 2F 20
+      15C4 : 28 5F 5F 5F 2F 20 28 5F 5F
+      15CD : 29 20 5C 5F 5F 2F 20 20 20
+      15D6 : 20 28 5F 5F 29 20 28 5F 5F
+      15DF : 5F 29 28 5F 5F 5F 5F 29 28
+      15E8 : 5F 5F 5F 29 20 5C 5F 5F 29
+      15F1 : 5C 5F 5F 2F 28 5F 2F 5C 2F
+      15FA : 5C 5F 29 0A               
+  184/15FE : 0A                         	DB "\n"
+  185/15FF : 20 20 20 20 20 20 20 20 20     DB "                        SECURE UNIQUE CRYPTOGRAPHIC KEY SYSTEM (SUCKS)\n"
+      1608 : 20 20 20 20 20 20 20 20 20
+      1611 : 20 20 20 20 20 20 53 45 43
+      161A : 55 52 45 20 55 4E 49 51 55
+      1623 : 45 20 43 52 59 50 54 4F 47
+      162C : 52 41 50 48 49 43 20 4B 45
+      1635 : 59 20 53 59 53 54 45 4D 20
+      163E : 28 53 55 43 4B 53 29 0A   
+  186/1646 : 20 20 20 20 20 20 20 20 20     DB "                        WITH MILITARY GRADE ANTI BRUTE FORCE SECURITY\n"
+      164F : 20 20 20 20 20 20 20 20 20
+      1658 : 20 20 20 20 20 20 57 49 54
+      1661 : 48 20 4D 49 4C 49 54 41 52
+      166A : 59 20 47 52 41 44 45 20 41
+      1673 : 4E 54 49 20 42 52 55 54 45
+      167C : 20 46 4F 52 43 45 20 53 45
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 5 - 18.11.2023 16:59:03
+
+
+      1685 : 43 55 52 49 54 59 0A      
+  187/168C : 0A                             DB "\n"
+  188/168D : 45 6E 74 65 72 20 70 61 73     DB "Enter password:\n"
+      1696 : 73 77 6F 72 64 3A 0A      
+  189/169D : 00                             DB 0
+  190/169E :                            
+  191/5C3D :                                ORG BASE + 5c3dh
+  192/5C3D : 44 49 53 4F 42 45 59 5B 6C     DB "DISOBEY[look at you hacker. How can you challenge a perfect, immortal machine?]",0
+      5C46 : 6F 6F 6B 20 61 74 20 79 6F
+      5C4F : 75 20 68 61 63 6B 65 72 2E
+      5C58 : 20 48 6F 77 20 63 61 6E 20
+      5C61 : 79 6F 75 20 63 68 61 6C 6C
+      5C6A : 65 6E 67 65 20 61 20 70 65
+      5C73 : 72 66 65 63 74 2C 20 69 6D
+      5C7C : 6D 6F 72 74 61 6C 20 6D 61
+      5C85 : 63 68 69 6E 65 3F 5D 00   
+  193/5C8D :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 6 - 18.11.2023 16:59:03
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :  "x86_64-apple-osx" - |  BANNER :                      1500 C |
+ BASE :                           0 - | *CASESENSITIVE :                  0 - |
+ CHECK_PW :                     145 C | *CONSTPI :        3.141592653589793 - |
+*DATE :                "18.11.2023" - |  DELAY :                        15F C |
+ D_LOOP :                       164 C |  ERROR :                        12D C |
+ ERROR_MSG :                   1400 C | *FALSE :                          0 - |
+ FLAG1 :                       1100 C |  FLAG2 :                       1200 C |
+*FLAG3 :                       1300 C | *FULLPMMU :                       1 - |
+*HAS64 :                          1 - | *HASFPU :                         0 - |
+*HASPMMU :                        0 - |  INPUT :                      0BF00 - |
+*INSUPMODE :                      0 - |  IN_LOOP :                      170 C |
+*LISTON :                         1 - |  LOOP :                         192 C |
+*MACEXP :                         7 - | *MOMCPU :                      8085 - |
+*MOMCPUNAME :                "8085" - |  M_C :                          107 C |
+*NESTMAX :                      100 - |  OUT1 :                         1BB C |
+*PADDING :                        1 - |  PRINT_ERROR :                  133 C |
+ PRINT_FLAG1 :                  139 C | *PRINT_FLAG2 :                  13F C |
+ PRINT_STRING :                 1A6 C |  PW :                          1000 C |
+ PW_LOOP :                      14B C |  READ_PW :                      16D C |
+*RELAXED :                        0 - |  RET :                          1A2 C |
+ RET_ERR :                      185 C |  RET_OK :                       187 C |
+ STACK :                      0C000 - |  START :                        100 C |
+ STRLEN :                       18A C | *TIME :                  "16:59:03" - |
+*TRUE :                           1 - |  UART_IN :                      1B0 C |
+ UART_INIT :                    1C5 C |  UART_OUT :                     1BA C |
+*VERSION :                     142F - | *Z80SYNTAX :                      0 - |
+
+     52 symbols
+     23 unused symbols
+
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 7 - 18.11.2023 16:59:03
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+    193 lines source file
+      2 passes
+      0 errors
+      0 warnings

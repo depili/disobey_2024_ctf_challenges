@@ -1,0 +1,508 @@
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 1 - 23.11.2023 16:04:37
+
+
+    1/   0 :                            		CPU 8085
+    2/   0 : =0H                        BASE EQU 0000h
+    3/   0 : =0C000H                    STACK EQU 0c000h
+    4/   0 : =0F000H                    DATA_IN EQU 0f000h
+    5/   0 : =0F001H                    COUNTER EQU 0f001h
+    6/   0 : =0F1H                      BUFFER_H EQU 0f1h
+    7/   0 :                            
+    8/   0 :                            		ORG BASE
+    9/   0 :                            
+   10/   0 : F3                         		DI					; execution starts here on power on
+   11/   1 : C3 40 00                   		JMP MAIN
+   12/   4 :                            
+   13/  34 :                            		ORG BASE + 34h
+   14/  34 :                            RST65:						; Interrupt vector for 8251A RxREADY signal
+   15/  34 : C3 65 00                   		JMP UART_RX
+   16/  37 :                            
+   17/  40 :                            		ORG BASE + 40h
+   18/  40 :                            MAIN:
+   19/  40 : 31 00 C0                   	LXI SP, STACK			; Initialize stack
+   20/  43 : CD B6 00                   	CALL UART_INIT			; Initialize 8251A UART
+   21/  46 : 3E 1D                      	MVI A, 00011101b		; Unmask interrupt 6.5, keep others masked
+   22/  48 : 30                         	SIM						; Set interrupt mask
+   23/  49 : AF                         	XRA A					; Clear A
+   24/  4A : 32 00 F0                   	STA DATA_IN				; Clear uart character input location
+   25/  4D : 32 01 F0                   	STA COUNTER				; Clear uart character count location
+   26/  50 :                            	; MVI A, "K"
+   27/  50 :                            	; CALL UART_OUT
+   28/  50 : 21 01 F0                   	LXI H, COUNTER			; Point HL to character counter
+   29/  53 :                            loop:
+   30/  53 : FB                         	EI						; Enable interrupts after processing loop..
+   31/  54 : 3A 00 F0                   	LDA DATA_IN				; Load the last read character
+   32/  57 : A7                         	ANA A					; check for non-zero
+   33/  58 : CA 53 00                   	JZ loop					; if character was a null continue the loop
+   34/  5B :                            	; CALL UART_OUT
+   35/  5B : CD D2 00                   	CALL CHECK				; Check the incoming character for the flag
+   36/  5E : AF                         	XRA A					; Clear A
+   37/  5F : 32 00 F0                   	STA DATA_IN				; Clear last read character
+   38/  62 :                            
+   39/  62 : C3 53 00                   	JMP loop
+   40/  65 :                            
+   41/  65 :                            UART_RX:					; 8251A UART receive interrupt service routine
+   42/  65 : F5                         	PUSH PSW				; Store A and PSW
+   43/  66 : E5                         	PUSH H					; Store HL
+   44/  67 : 20                         	RIM						; Dummy read interrupt mask instruction
+   45/  68 : DB 09                      	IN 9					; Dummy read 8251A status register instruction
+   46/  6A : DB 08                      	IN 8					; Read the received character
+   47/  6C : 32 00 F0                   	STA DATA_IN				; Store the character
+   48/  6F : 21 01 F0                   	LXI H, COUNTER			; Set HL to point to the counter
+   49/  72 : 34                         	INR M					; increment the counter
+   50/  73 : E1                         	POP H					; restore HL
+   51/  74 : F1                         	POP PSW					; restore A and PSW
+   52/  75 : C9                         	RET						; return from interupt
+   53/  76 :                            
+   54/  76 : 0A 43 4F 52 52 45 43 54 0A correct: DB "\nCORRECT\n", 0
+        7F : 00                        
+   55/  80 : 0A 45 52 52 4F 52 20 0A 00 incorrect: DB "\nERROR \n",0
+   56/  89 :                            
+   57/  89 :                            ALL_OK:						; All characters OK
+   58/  89 : 21 76 00                   		LXI H, correct
+   59/  8C : CD A1 00                   		CALL PRINT_STRING
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 2 - 23.11.2023 16:04:37
+
+
+   60/  8F : C3 98 00                   		JMP OUT2
+   61/  92 :                            
+   62/  92 :                            ERROR:						; Error, wrong character
+   63/  92 : 21 80 00                   		LXI H, incorrect
+   64/  95 : CD A1 00                   		CALL PRINT_STRING
+   65/  98 :                            OUT2:						; Wait for all characters to be transmitted before reseting
+   66/  98 : DB 09                      		IN	9				; Get 8251 status
+   67/  9A : 0F                         		RRC					; Test TX bit
+   68/  9B : D2 98 00                   		JNC	OUT2			; Not ready
+   69/  9E : C3 40 00                   		JMP MAIN
+   70/  A1 :                            
+   71/  A1 :                            
+   72/  A1 :                            PRINT_STRING:				; Print a null terminated string
+   73/  A1 : 7E                         		MOV	A,M				; Get byte from message
+   74/  A2 : 23                         		INX	H				; Advance to next
+   75/  A3 : A7                         		ANA	A				; End of message?
+   76/  A4 : C8                         		RZ					; Yes, exit
+   77/  A5 : CD AB 00                   		CALL UART_OUT		; Output the character
+   78/  A8 : C3 A1 00                   		JMP	PRINT_STRING	; And proceed
+   79/  AB :                            
+   80/  AB :                            ; Blocking print character to UART
+   81/  AB :                            UART_OUT:
+   82/  AB : F5                         		PUSH	PSW			; Save char
+   83/  AC :                            OUT1:
+   84/  AC : DB 09                      		IN	9				; Get 8251 status
+   85/  AE : 0F                         		RRC					; Test TX bit
+   86/  AF : D2 AC 00                   		JNC	OUT1			; Not ready
+   87/  B2 : F1                         		POP	PSW				; Restore char
+   88/  B3 : D3 08                      		OUT	8				; Write 8251 data
+   89/  B5 : C9                         		RET
+   90/  B6 :                            
+   91/  B6 :                            UART_INIT:
+   92/  B6 : AF                         		XRA	A				; Insure not setup mode
+   93/  B7 : D3 09                      		OUT	9				; Write once
+   94/  B9 : D3 09                      		OUT	9				; Write again (now in operate mode)
+   95/  BB : D3 09                      		OUT	9				; Write again (now in operate mode)
+   96/  BD : 3E 40                      		MVI	A,01000000b		; Reset
+   97/  BF : D3 09                      		OUT	9				; write it
+   98/  C1 : 3E 4E                      		MVI	A,01001110b		; 8 data, 1 stop, x16
+   99/  C3 : D3 09                      		OUT	9				; Write it
+  100/  C5 : 3E 37                      		MVI	A,00110111b		; RTS,DTR,Enable RX,TX
+  101/  C7 : D3 09                      		OUT	9				; Write it
+  102/  C9 : C9                         		RET
+  103/  CA :                            
+  104/  CA :                            IN:
+  105/  CA : DB 09                      		IN	9				; Get 8251 status
+  106/  CC : E6 02                      		ANI	00000010b		; Test for ready
+  107/  CE : C8                         		RZ					; No char
+  108/  CF : DB 08                      		IN	8				; Get 8251 data
+  109/  D1 : C9                         		RET
+  110/  D2 :                            
+  111/  D2 :                            CHECK:						; Check the flag input
+  112/  D2 : F5                         		PUSH PSW			; save A + PSW
+  113/  D3 : E5                         		PUSH H				; save HL
+  114/  D4 : D5                         		PUSH D				; save DE
+  115/  D5 : 21 E8 00                   		LXI H, CHECK_END
+  116/  D8 : E5                         		PUSH H				; Push the CHECK_END pointer to stack for eventual return
+  117/  D9 :                            		; MVI A, "-"
+  118/  D9 :                            		; CALL UART_OUT
+  119/  D9 : 3A 00 F0                   		LDA DATA_IN			; Load the input character
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 3 - 23.11.2023 16:04:37
+
+
+  120/  DC : E6 7F                      		ANI 7Fh				; Clear high bit
+  121/  DE : 07                         		RLC					; Rotate left, multiply by 2
+  122/  DF : 21 00 10                   		LXI H, TABLE		; load table high address
+  123/  E2 : 6F                         		MOV L, A			; set the low address
+  124/  E3 : 5E                         		MOV E, M			; Load the jump address from the table, low byte
+  125/  E4 : 2C                         		INR L
+  126/  E5 : 56                         		MOV D, M			; High byte
+  127/  E6 : EB                         		XCHG				; Swap DE and HL
+  128/  E7 : E9                         		PCHL				; Jump to HL
+  129/  E8 :                            
+  130/  E8 :                            CHECK_END:
+  131/  E8 : D1                         		POP D
+  132/  E9 : E1                         		POP H
+  133/  EA : F1                         		POP PSW
+  134/  EB : C9                         		RET
+  135/  EC :                            
+  136/  EC :                            ; D  I  S  O  B  E  Y  [  I  N  T  E  R  U  P  T  S     A  N  D     S  W  I  T  C  H  ]
+  137/  EC :                            ; x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x
+  138/  EC :                            ; 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1c 1d
+  139/  EC :                            
+  140/  EC :                            C_Y:
+  141/  EC : 3A 01 F0                   	LDA COUNTER
+  142/  EF : FE 07                      	CPI 07h
+  143/  F1 : CA 13 02                   	JZ OK
+  144/  F4 : C3 92 00                   	JMP ERROR
+  145/  F7 :                            
+  146/  F7 :                            C_W:
+  147/  F7 : 3A 01 F0                   	LDA COUNTER
+  148/  FA : FE 18                      	CPI 18h
+  149/  FC : CA 13 02                   	JZ OK
+  150/  FF : C3 92 00                   	JMP ERROR
+  151/ 102 :                            
+  152/ 102 :                            C_N:
+  153/ 102 : 3A 01 F0                   	LDA COUNTER
+  154/ 105 : FE 0A                      	CPI 0Ah
+  155/ 107 : CA 13 02                   	JZ OK
+  156/ 10A : FE 14                      	CPI 14h
+  157/ 10C : CA 13 02                   	JZ OK
+  158/ 10F : C3 92 00                   	JMP ERROR
+  159/ 112 :                            
+  160/ 112 :                            C_O:
+  161/ 112 : 3A 01 F0                   	LDA COUNTER
+  162/ 115 : FE 04                      	CPI 04h
+  163/ 117 : CA 13 02                   	JZ OK
+  164/ 11A : C3 92 00                   	JMP ERROR
+  165/ 11D :                            
+  166/ 11D :                            C_S:
+  167/ 11D : 3A 01 F0                   	LDA COUNTER
+  168/ 120 : FE 03                      	CPI 03h
+  169/ 122 : CA 13 02                   	JZ OK
+  170/ 125 : FE 11                      	CPI 11h
+  171/ 127 : CA 13 02                   	JZ OK
+  172/ 12A : FE 17                      	CPI 17h
+  173/ 12C : CA 13 02                   	JZ OK
+  174/ 12F : C3 92 00                   	JMP ERROR
+  175/ 132 :                            
+  176/ 132 :                            C_P:
+  177/ 132 : 3A 01 F0                   	LDA COUNTER
+  178/ 135 : FE 0F                      	CPI 0fh
+  179/ 137 : CA 13 02                   	JZ OK
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 4 - 23.11.2023 16:04:37
+
+
+  180/ 13A : C3 92 00                   	JMP ERROR
+  181/ 13D :                            
+  182/ 13D :                            C_U:
+  183/ 13D : 3A 01 F0                   	LDA COUNTER
+  184/ 140 : FE 0E                      	CPI 0eh
+  185/ 142 : CA 13 02                   	JZ OK
+  186/ 145 : C3 92 00                   	JMP ERROR
+  187/ 148 :                            
+  188/ 148 :                            C_Bracket_Open:
+  189/ 148 : 3A 01 F0                   	LDA COUNTER
+  190/ 14B : FE 08                      	CPI 08h
+  191/ 14D : CA 13 02                   	JZ OK
+  192/ 150 : C3 92 00                   	JMP ERROR
+  193/ 153 :                            
+  194/ 153 :                            C_R:
+  195/ 153 : 3A 01 F0                   	LDA COUNTER
+  196/ 156 : FE 0D                      	CPI 0dh
+  197/ 158 : CA 13 02                   	JZ OK
+  198/ 15B : C3 92 00                   	JMP ERROR
+  199/ 15E :                            
+  200/ 15E :                            C_C:
+  201/ 15E : 3A 01 F0                   	LDA COUNTER
+  202/ 161 : FE 1B                      	CPI 1bh
+  203/ 163 : CA 13 02                   	JZ OK
+  204/ 166 : C3 92 00                   	JMP ERROR
+  205/ 169 :                            
+  206/ 169 :                            SPACE:
+  207/ 169 : 3A 01 F0                   	LDA COUNTER
+  208/ 16C : FE 12                      	CPI 12h
+  209/ 16E : CA 13 02                   	JZ OK
+  210/ 171 : FE 16                      	CPI 16h
+  211/ 173 : CA 13 02                   	JZ OK
+  212/ 176 : C3 92 00                   	JMP ERROR
+  213/ 179 :                            
+  214/ 179 :                            C_T:
+  215/ 179 : 3A 01 F0                   	LDA COUNTER
+  216/ 17C : FE 0B                      	CPI 0bh
+  217/ 17E : CA 13 02                   	JZ OK
+  218/ 181 : FE 10                      	CPI 10h
+  219/ 183 : CA 13 02                   	JZ OK
+  220/ 186 : FE 1A                      	CPI 1ah
+  221/ 188 : CA 13 02                   	JZ OK
+  222/ 18B : C3 92 00                   	JMP ERROR
+  223/ 18E :                            
+  224/ 18E :                            C_Bracket_Close:
+  225/ 18E : 3A 01 F0                   	LDA COUNTER
+  226/ 191 : FE 1D                      	CPI 1dh
+  227/ 193 : CA 89 00                   	JZ ALL_OK
+  228/ 196 : C3 92 00                   	JMP ERROR
+  229/ 199 :                            
+  230/ 199 :                            C_H:
+  231/ 199 : 3A 01 F0                   	LDA COUNTER
+  232/ 19C : FE 1C                      	CPI 1ch
+  233/ 19E : CA 13 02                   	JZ OK
+  234/ 1A1 : C3 92 00                   	JMP ERROR
+  235/ 1A4 :                            
+  236/ 1A4 :                            C_I:
+  237/ 1A4 : 3A 01 F0                   	LDA COUNTER
+  238/ 1A7 : FE 02                      	CPI 02h
+  239/ 1A9 : CA 13 02                   	JZ OK
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 5 - 23.11.2023 16:04:37
+
+
+  240/ 1AC : FE 09                      	CPI 09h
+  241/ 1AE : CA 13 02                   	JZ OK
+  242/ 1B1 : FE 19                      	CPI 19h
+  243/ 1B3 : CA 13 02                   	JZ OK
+  244/ 1B6 : C3 92 00                   	JMP ERROR
+  245/ 1B9 :                            
+  246/ 1B9 :                            C_B:
+  247/ 1B9 : 3A 01 F0                   	LDA COUNTER
+  248/ 1BC : FE 05                      	CPI 05h
+  249/ 1BE : CA 13 02                   	JZ OK
+  250/ 1C1 : C3 92 00                   	JMP ERROR
+  251/ 1C4 :                            
+  252/ 1C4 :                            C_K:
+  253/ 1C4 :                            C_J:
+  254/ 1C4 : 3A 01 F0                   	LDA COUNTER
+  255/ 1C7 : FE 25                      	CPI 25h
+  256/ 1C9 : CA 13 02                   	JZ OK
+  257/ 1CC : FE 27                      	CPI 27h
+  258/ 1CE : CA 13 02                   	JZ OK
+  259/ 1D1 : C3 92 00                   	JMP ERROR
+  260/ 1D4 :                            
+  261/ 1D4 :                            C_E:
+  262/ 1D4 : 3A 01 F0                   	LDA COUNTER
+  263/ 1D7 : FE 06                      	CPI 06h
+  264/ 1D9 : CA 13 02                   	JZ OK
+  265/ 1DC : FE 0C                      	CPI 0ch
+  266/ 1DE : CA 13 02                   	JZ OK
+  267/ 1E1 : C3 92 00                   	JMP ERROR
+  268/ 1E4 :                            
+  269/ 1E4 :                            C_D:
+  270/ 1E4 : 3A 01 F0                   	LDA COUNTER
+  271/ 1E7 : FE 01                      	CPI 01h
+  272/ 1E9 : CA 13 02                   	JZ OK
+  273/ 1EC : FE 15                      	CPI 15h
+  274/ 1EE : CA 13 02                   	JZ OK
+  275/ 1F1 : C3 92 00                   	JMP ERROR
+  276/ 1F4 :                            
+  277/ 1F4 :                            C_A:
+  278/ 1F4 : 3A 01 F0                   	LDA COUNTER
+  279/ 1F7 : FE 13                      	CPI 13h
+  280/ 1F9 : CA 13 02                   	JZ OK
+  281/ 1FC : C3 92 00                   	JMP ERROR
+  282/ 1FF :                            
+  283/ 1FF :                            C_G:
+  284/ 1FF :                            C_F:
+  285/ 1FF : 3A 01 F0                   	LDA COUNTER
+  286/ 202 : FE 23                      	CPI 23h
+  287/ 204 : CA 13 02                   	JZ OK
+  288/ 207 : C3 92 00                   	JMP ERROR
+  289/ 20A :                            
+  290/ 20A :                            C_L:
+  291/ 20A :                            C_M:
+  292/ 20A :                            C_Q:
+  293/ 20A :                            C_V:
+  294/ 20A :                            C_X:
+  295/ 20A :                            C_Z:
+  296/ 20A : CD 92 00                   		CALL ERROR
+  297/ 20D :                            
+  298/ 20D : 3E 2E                      		MVI A, '.'
+  299/ 20F : CD AB 00                   		CALL UART_OUT
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 6 - 23.11.2023 16:04:37
+
+
+  300/ 212 : C9                         		RET
+  301/ 213 :                            
+  302/ 213 :                            OK:
+  303/ 213 : 3E 2E                      		MVI A, '.'
+  304/ 215 : CD AB 00                   		CALL UART_OUT
+  305/ 218 : C9                         		RET
+  306/ 219 :                            
+  307/ 219 :                            
+  308/1000 :                            		ORG BASE + 1000h
+  309/1000 :                            
+  310/1000 :                            
+  311/1000 :                            ; DISOBEY[INTERRUPTS AND SWITCH]
+  312/1000 :                            
+  313/1000 :                            TABLE:						; Ascii offsets multiplied by two to get a vector address
+  314/1000 : 92 00 92 00 92 00 92 00 92 	DW 32 DUP (ERROR)		; 0x00 - 0x1f
+      1009 : 00 92 00 92 00 92 00 92 00
+      1012 : 92 00 92 00 92 00 92 00 92
+      101B : 00 92 00 92 00 92 00 92 00
+      1024 : 92 00 92 00 92 00 92 00 92
+      102D : 00 92 00 92 00 92 00 92 00
+      1036 : 92 00 92 00 92 00 92 00 92
+      103F : 00                        
+  315/1040 : 69 01                      	DW SPACE
+  316/1042 : 92 00 92 00 92 00 92 00 92 	DW 32 DUP (ERROR)		; 0x21 - 0x40
+      104B : 00 92 00 92 00 92 00 92 00
+      1054 : 92 00 92 00 92 00 92 00 92
+      105D : 00 92 00 92 00 92 00 92 00
+      1066 : 92 00 92 00 92 00 92 00 92
+      106F : 00 92 00 92 00 92 00 92 00
+      1078 : 92 00 92 00 92 00 92 00 92
+      1081 : 00                        
+  317/1082 : F4 01                      	DW C_A
+  318/1084 : B9 01                      	DW C_B
+  319/1086 : 5E 01                      	DW C_C
+  320/1088 : E4 01                      	DW C_D
+  321/108A : D4 01                      	DW C_E
+  322/108C : FF 01                      	DW C_F
+  323/108E : FF 01                      	DW C_G
+  324/1090 : 99 01                      	DW C_H
+  325/1092 : A4 01                      	DW C_I
+  326/1094 : C4 01                      	DW C_J
+  327/1096 : C4 01                      	DW C_K
+  328/1098 : 0A 02                      	DW C_L
+  329/109A : 0A 02                      	DW C_M
+  330/109C : 02 01                      	DW C_N
+  331/109E : 12 01                      	DW C_O
+  332/10A0 : 32 01                      	DW C_P
+  333/10A2 : 0A 02                      	DW C_Q
+  334/10A4 : 53 01                      	DW C_R
+  335/10A6 : 1D 01                      	DW C_S
+  336/10A8 : 79 01                      	DW C_T
+  337/10AA : 3D 01                      	DW C_U
+  338/10AC : 0A 02                      	DW C_V
+  339/10AE : F7 00                      	DW C_W
+  340/10B0 : 0A 02                      	DW C_X
+  341/10B2 : EC 00                      	DW C_Y
+  342/10B4 : 0A 02                      	DW C_Z
+  343/10B6 : 48 01                      	DW C_Bracket_Open
+  344/10B8 : 92 00                      	DW ERROR
+  345/10BA : 8E 01                      	DW C_Bracket_Close
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 7 - 23.11.2023 16:04:37
+
+
+  346/10BC : 92 00 92 00 92 00 92 00 92 	DW 256 DUP (ERROR)
+      10C5 : 00 92 00 92 00 92 00 92 00
+      10CE : 92 00 92 00 92 00 92 00 92
+      10D7 : 00 92 00 92 00 92 00 92 00
+      10E0 : 92 00 92 00 92 00 92 00 92
+      10E9 : 00 92 00 92 00 92 00 92 00
+      10F2 : 92 00 92 00 92 00 92 00 92
+      10FB : 00 92 00 92 00 92 00 92 00
+      1104 : 92 00 92 00 92 00 92 00 92
+      110D : 00 92 00 92 00 92 00 92 00
+      1116 : 92 00 92 00 92 00 92 00 92
+      111F : 00 92 00 92 00 92 00 92 00
+      1128 : 92 00 92 00 92 00 92 00 92
+      1131 : 00 92 00 92 00 92 00 92 00
+      113A : 92 00 92 00 92 00 92 00 92
+      1143 : 00 92 00 92 00 92 00 92 00
+      114C : 92 00 92 00 92 00 92 00 92
+      1155 : 00 92 00 92 00 92 00 92 00
+      115E : 92 00 92 00 92 00 92 00 92
+      1167 : 00 92 00 92 00 92 00 92 00
+      1170 : 92 00 92 00 92 00 92 00 92
+      1179 : 00 92 00 92 00 92 00 92 00
+      1182 : 92 00 92 00 92 00 92 00 92
+      118B : 00 92 00 92 00 92 00 92 00
+      1194 : 92 00 92 00 92 00 92 00 92
+      119D : 00 92 00 92 00 92 00 92 00
+      11A6 : 92 00 92 00 92 00 92 00 92
+      11AF : 00 92 00 92 00 92 00 92 00
+      11B8 : 92 00 92 00 92 00 92 00 92
+      11C1 : 00 92 00 92 00 92 00 92 00
+      11CA : 92 00 92 00 92 00 92 00 92
+      11D3 : 00 92 00 92 00 92 00 92 00
+      11DC : 92 00 92 00 92 00 92 00 92
+      11E5 : 00 92 00 92 00 92 00 92 00
+      11EE : 92 00 92 00 92 00 92 00 92
+      11F7 : 00 92 00 92 00 92 00 92 00
+      1200 : 92 00 92 00 92 00 92 00 92
+      1209 : 00 92 00 92 00 92 00 92 00
+      1212 : 92 00 92 00 92 00 92 00 92
+      121B : 00 92 00 92 00 92 00 92 00
+      1224 : 92 00 92 00 92 00 92 00 92
+      122D : 00 92 00 92 00 92 00 92 00
+      1236 : 92 00 92 00 92 00 92 00 92
+      123F : 00 92 00 92 00 92 00 92 00
+      1248 : 92 00 92 00 92 00 92 00 92
+      1251 : 00 92 00 92 00 92 00 92 00
+      125A : 92 00 92 00 92 00 92 00 92
+      1263 : 00 92 00 92 00 92 00 92 00
+      126C : 92 00 92 00 92 00 92 00 92
+      1275 : 00 92 00 92 00 92 00 92 00
+      127E : 92 00 92 00 92 00 92 00 92
+      1287 : 00 92 00 92 00 92 00 92 00
+      1290 : 92 00 92 00 92 00 92 00 92
+      1299 : 00 92 00 92 00 92 00 92 00
+      12A2 : 92 00 92 00 92 00 92 00 92
+      12AB : 00 92 00 92 00 92 00 92 00
+      12B4 : 92 00 92 00 92 00 92 00   
+  347/12BC :                            
+  348/12BC :                            
+  349/12BC :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 8 - 23.11.2023 16:04:37
+
+
+  350/12BC :                            
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 9 - 23.11.2023 16:04:37
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+ ALL_OK :                        89 C | *ARCHITECTURE :  "x86_64-apple-osx" - |
+ BASE :                           0 - | *BUFFER_H :                     0F1 - |
+*CASESENSITIVE :                  0 - |  CHECK :                        0D2 C |
+ CHECK_END :                    0E8 C | *CONSTPI :        3.141592653589793 - |
+ CORRECT :                       76 C |  COUNTER :                    0F001 - |
+ C_A :                          1F4 C |  C_B :                          1B9 C |
+ C_BRACKET_CLOSE :              18E C |  C_BRACKET_OPEN :               148 C |
+ C_C :                          15E C |  C_D :                          1E4 C |
+ C_E :                          1D4 C |  C_F :                          1FF C |
+ C_G :                          1FF C |  C_H :                          199 C |
+ C_I :                          1A4 C |  C_J :                          1C4 C |
+ C_K :                          1C4 C |  C_L :                          20A C |
+ C_M :                          20A C |  C_N :                          102 C |
+ C_O :                          112 C |  C_P :                          132 C |
+ C_Q :                          20A C |  C_R :                          153 C |
+ C_S :                          11D C |  C_T :                          179 C |
+ C_U :                          13D C |  C_V :                          20A C |
+ C_W :                          0F7 C |  C_X :                          20A C |
+ C_Y :                          0EC C |  C_Z :                          20A C |
+ DATA_IN :                    0F000 - | *DATE :                "23.11.2023" - |
+ ERROR :                         92 C | *FALSE :                          0 - |
+*FULLPMMU :                       1 - | *HAS64 :                          1 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+*IN :                           0CA C |  INCORRECT :                     80 C |
+*INSUPMODE :                      0 - | *LISTON :                         1 - |
+ LOOP :                          53 C | *MACEXP :                         7 - |
+ MAIN :                          40 C | *MOMCPU :                      8085 - |
+*MOMCPUNAME :                "8085" - | *NESTMAX :                      100 - |
+ OK :                           213 C |  OUT1 :                         0AC C |
+ OUT2 :                          98 C | *PADDING :                        1 - |
+ PRINT_STRING :                 0A1 C | *RELAXED :                        0 - |
+*RST65 :                         34 C |  SPACE :                        169 C |
+ STACK :                      0C000 - |  TABLE :                       1000 C |
+*TIME :                  "16:04:37" - | *TRUE :                           1 - |
+ UART_INIT :                    0B6 C |  UART_OUT :                     0AB C |
+ UART_RX :                       65 C | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     73 symbols
+     24 unused symbols
+
+ AS V1.42 Beta [Bld 254] - Source File source.asm - Page 10 - 23.11.2023 16:04:37
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.01 seconds assembly time
+
+    350 lines source file
+      2 passes
+      0 errors
+      0 warnings
